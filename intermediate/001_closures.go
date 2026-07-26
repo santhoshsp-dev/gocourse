@@ -1,0 +1,49 @@
+package main
+
+import "fmt"
+
+// 1)
+func adder() func() int { // adder() function returning another function. that function return int.
+	i := 0
+	fmt.Println("previous value of i:", i)
+	return func() int {
+		i++
+		fmt.Println("added 1 to i")
+		return i
+	}
+}
+
+func main() {
+
+	// 2)
+	// sequence := adder()
+	// fmt.Println(sequence())
+
+	// 3)
+	// fmt.Println(sequence())
+	// fmt.Println(sequence())
+	// fmt.Println(sequence())
+
+	// 4)
+	// sequence2 := adder()
+	// fmt.Println(sequence2())
+
+	// 5)
+	subtracter := func() func(int) int {
+
+		countdown := 99
+		return func(x int) int {
+			countdown -= x
+			return countdown
+		}
+	}()
+
+	// Step: 6)
+	// Using the closure subtracter
+	fmt.Println(subtracter(1))
+	fmt.Println(subtracter(2))
+	fmt.Println(subtracter(3))
+	fmt.Println(subtracter(4))
+	fmt.Println(subtracter(5))
+
+}
