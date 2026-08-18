@@ -118,10 +118,10 @@ func main() {
 	// Create custom server
 	server := &http.Server{
 		Addr: port,
-		// Start ---------- 032 -----------
-		Handler: mw.ResponseTimeMiddleware(mw.SecurityHeaders(mw.Cors(mux))),
+		// Start ---------- 034 -----------
+		Handler: mw.Compression(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mw.Cors(mux)))),
 		// Handler: middlewares.Cors(mux),
-		// END ----------- 032 ------------
+		// END ----------- 034 ------------
 		TLSConfig: tlsConfig,
 	}
 
