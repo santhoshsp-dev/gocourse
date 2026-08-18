@@ -119,7 +119,7 @@ func main() {
 	server := &http.Server{
 		Addr: port,
 		// Start ---------- 032 -----------
-		Handler: mw.SecurityHeaders(mw.Cors(mux)),
+		Handler: mw.ResponseTimeMiddleware(mw.SecurityHeaders(mw.Cors(mux))),
 		// Handler: middlewares.Cors(mux),
 		// END ----------- 032 ------------
 		TLSConfig: tlsConfig,
