@@ -1,0 +1,150 @@
+package handlers
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"restapi/internal/models"
+	"strconv"
+	"strings"
+	"sync"
+)
+
+var (
+	teachers = make(map[int]models.Teacher)
+	mutex    = &sync.Mutex{}
+	nextID   = 1
+)
+
+func init() {
+	teachers[nextID] = models.Teacher{
+		ID:        nextID,
+		FirstName: "John",
+		LastName:  "Doe",
+		Class:     "9A",
+		Subject:   "Math",
+	}
+	nextID++
+	teachers[nextID] = models.Teacher{
+		ID:        nextID,
+		FirstName: "Jane",
+		LastName:  "Smith",
+		Class:     "10A",
+		Subject:   "Algebra",
+	}
+	nextID++
+	teachers[nextID] = models.Teacher{
+		ID:        nextID,
+		FirstName: "Jane",
+		LastName:  "Doe",
+		Class:     "11A",
+		Subject:   "Biology",
+	}
+	nextID++
+}
+
+func TeachersHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		getTeachersHandler(w, r)
+	case http.MethodPost:
+		// Start ---------- 041 -----------
+		addTeacherHandler(w, r)
+		// END ----------- 041 ------------
+		w.Write([]byte("Hello POST Method on Teachers Route"))
+	case http.MethodPut:
+		w.Write([]byte("Hello PUT Method on Teachers Route"))
+	case http.MethodPatch:
+		w.Write([]byte("Hello PATCH Method on Teachers Route"))
+	case http.MethodDelete:
+		w.Write([]byte("Hello DELETE Method on Teachers Route"))
+	}
+}
+
+func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
+	// Step: 3)
+	path := strings.TrimPrefix(r.URL.Path, "/teachers/")
+	idStr := strings.TrimSuffix(path, "/")
+	fmt.Println(idStr)
+
+	if idStr == "" {
+		// Step: 2)
+		firstName := r.URL.Query().Get("first_name")
+		lastName := r.URL.Query().Get("last_name")
+
+		teacherList := make([]models.Teacher, 0, len(teachers))
+
+		for _, teacher := range teachers {
+			// Step: 2)
+			if (firstName == "" || teacher.FirstName == firstName) && (lastName == "" || teacher.LastName == lastName) {
+				// Step: 1)
+				teacherList = append(teacherList, teacher)
+			}
+		}
+		// Step: 1)
+		response := struct {
+			Status string           `json:"status"`
+			Count  int              `json:"count"`
+			Data   []models.Teacher `json:"data"`
+		}{
+			Status: "success",
+			Count:  len(teacherList),
+			Data:   teacherList,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
+
+	// Step: 4)
+	// Atoi-> Alphabet to integer
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	teacher, exists := teachers[id]
+	if !exists {
+		http.Error(w, "Teacher not found", http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(teacher)
+}
+
+// Start ---------- 041 -----------
+func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	var newTeachers []models.Teacher
+	err := json.NewDecoder(r.Body).Decode(&newTeachers)
+	if err != nil {
+		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
+		return
+	}
+
+	addedTeachers := make([]models.Teacher, len(newTeachers))
+	for i, newTeacher := range newTeachers {
+		newTeacher.ID = nextID
+		teachers[nextID] = newTeacher
+		addedTeachers[i] = newTeacher
+		nextID++
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	response := struct {
+		Status string           `json:"status"`
+		Count  int              `json:"count"`
+		Data   []models.Teacher `json:"data"`
+	}{
+		Status: "success",
+		Count:  len(addedTeachers),
+		Data:   addedTeachers,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// END ----------- 041 ------------
