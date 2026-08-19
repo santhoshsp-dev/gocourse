@@ -6,14 +6,7 @@ import (
 	"log"
 	"net/http"
 	mw "restapi/internal/api/middlewares"
-	"time"
 )
-
-type user struct {
-	Name string `json:"name"`
-	Age  string `json:"age"`
-	City string `json:"city"`
-}
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello Root Route"))
@@ -83,17 +76,25 @@ func main() {
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}
-	// Start ---------- 035 -----------
-	rl := mw.NewRateLimiter(5, time.Minute)
-	// END ----------- 035 ------------
+	// rl := mw.NewRateLimiter(5, time.Minute)
+
+	// hppOptions := mw.HPPOptions{
+	// 	CheckQuery:                  true,
+	// 	CheckBody:                   true,
+	// 	CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
+	// 	Whitelist:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
+	// }
+
+	// Start ---------- 036 -----------
+	// secureMux := mw.Cors(rl.Middleware(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mw.Compression(mw.Hpp(hppOptions)(mux)))))) // no need
+	// secureMux := applyMiddlewares(mux, mw.Hpp(hppOptions), mw.Compression, mw.SecurityHeaders, mw.ResponseTimeMiddleware, rl.Middleware, mw.Cors)
+	secureMux := mw.SecurityHeaders(mux)
+	// END ----------- 036 ------------
 
 	// Create custom server
 	server := &http.Server{
-		Addr: port,
-		// Start ---------- 035 -----------
-		Handler: rl.Middleware(mw.Compression(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mw.Cors(mux))))),
-		// END ----------- 035 ------------
-		// Handler: middlewares.Cors(mux),
+		Addr:      port,
+		Handler:   secureMux,
 		TLSConfig: tlsConfig,
 	}
 
@@ -103,3 +104,16 @@ func main() {
 		log.Fatalln("Error starting the server", err)
 	}
 }
+
+// Start ---------- 036 -----------
+// Middleware is a function that wraps an http.Handler with additional functionality
+type Middleware func(http.Handler) http.Handler
+
+func ApplyMiddlewares(handler http.Handler, middlewares ...Middleware) http.Handler {
+	for _, middleware := range middlewares {
+		handler = middleware(handler)
+	}
+	return handler
+}
+
+// END ----------- 036 ------------
