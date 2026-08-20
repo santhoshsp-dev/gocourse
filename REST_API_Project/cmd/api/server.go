@@ -17,7 +17,10 @@ func main() {
 
 	err := godotenv.Load()
 	if err != nil {
-		return
+		// Fallback: try loading from cmd/api/.env
+		if errFallback := godotenv.Load("cmd/api/.env"); errFallback != nil {
+			log.Println("Warning: No .env file found. Using default/system environment variables.")
+		}
 	}
 
 	_, err = sqlconnect.ConnectDb()
@@ -30,6 +33,12 @@ func main() {
 
 	cert := "cert.pem"
 	key := "key.pem"
+	if _, err := os.Stat(cert); os.IsNotExist(err) {
+		if _, errFallback := os.Stat("cmd/api/" + cert); errFallback == nil {
+			cert = "cmd/api/" + cert
+			key = "cmd/api/" + key
+		}
+	}
 
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
