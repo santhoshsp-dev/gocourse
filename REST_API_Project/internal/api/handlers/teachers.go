@@ -61,6 +61,24 @@ func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Start ---------- 056 -----------
+func isValidSortOrder(order string) bool {
+	return order == "asc" || order == "desc"
+}
+
+func isValidSortField(field string) bool {
+	validFields := map[string]bool{
+		"first_name": true,
+		"last_name":  true,
+		"email":      true,
+		"class":      true,
+		"subject":    true,
+	}
+	return validFields[field]
+}
+
+// END ----------- 056 ------------
+
 func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	// Start ---------- 052 -----------
 	db, err := sqlconnect.ConnectDb()
@@ -80,10 +98,12 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 		var args []interface{}
 
 		// Start ---------- 055 -----------
-		// Start ---------- 055 -----------
-		// END ----------- 055 ------------
 		query, args = addFilters(r, query, args)
 		// END ----------- 055 ------------
+
+		// Start ---------- 056 -----------
+		query = addSorting(r, query)
+		// END ----------- 056 ------------
 
 		rows, err := db.Query(query, args...)
 		if err != nil {
@@ -120,6 +140,8 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Handle path parameter
 	// Atoi-> Alphabet to integer
+	fmt.Println("path:", path)
+	fmt.Println("idStr:", idStr)
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		fmt.Println(err)
@@ -141,6 +163,32 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	// END ----------- 052 ------------
 	json.NewEncoder(w).Encode(teacher)
 }
+
+// Start ---------- 056 -----------
+
+func addSorting(r *http.Request, query string) string {
+	sortParams := r.URL.Query()["sortby"]
+	if len(sortParams) > 0 {
+		query += " ORDER BY"
+		for i, param := range sortParams {
+			parts := strings.Split(param, ":")
+			if len(parts) != 2 {
+				continue
+			}
+			field, order := parts[0], parts[1]
+			if !isValidSortField(field) || !isValidSortOrder(order) {
+				continue
+			}
+			if i > 0 {
+				query += ","
+			}
+			query += " " + field + " " + order
+		}
+	}
+	return query
+}
+
+// END ----------- 056 ------------
 
 // Start ---------- 055 -----------
 func addFilters(r *http.Request, query string, args []interface{}) (string, []interface{}) {
