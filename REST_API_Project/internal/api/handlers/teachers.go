@@ -74,23 +74,16 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	idStr := strings.TrimSuffix(path, "/")
 	fmt.Println(idStr)
-	if idStr == "" {
-		firstName := r.URL.Query().Get("first_name")
-		lastName := r.URL.Query().Get("last_name")
 
-		// Start ---------- 052 -----------
+	if idStr == "" {
 		query := "SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE 1=1"
 		var args []interface{}
 
-		if firstName != "" {
-			query += " AND first_name = ?"
-			args = append(args, firstName)
-		}
-
-		if lastName != "" {
-			query += " AND last_name = ?"
-			args = append(args, lastName)
-		}
+		// Start ---------- 055 -----------
+		// Start ---------- 055 -----------
+		// END ----------- 055 ------------
+		query, args = addFilters(r, query, args)
+		// END ----------- 055 ------------
 
 		rows, err := db.Query(query, args...)
 		if err != nil {
@@ -110,7 +103,6 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			teacherList = append(teacherList, teacher)
 		}
-		// END ----------- 052 ------------
 
 		response := struct {
 			Status string           `json:"status"`
@@ -149,6 +141,28 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	// END ----------- 052 ------------
 	json.NewEncoder(w).Encode(teacher)
 }
+
+// Start ---------- 055 -----------
+func addFilters(r *http.Request, query string, args []interface{}) (string, []interface{}) {
+	params := map[string]string{
+		"first_name": "first_name",
+		"last_name":  "last_name",
+		"email":      "email",
+		"class":      "class",
+		"subject":    "subject",
+	}
+
+	for param, dbField := range params {
+		value := r.URL.Query().Get(param)
+		if value != "" {
+			query += " AND " + dbField + " = ?"
+			args = append(args, value)
+		}
+	}
+	return query, args
+}
+
+// END ----------- 055 ------------
 
 func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	db, err := sqlconnect.ConnectDb()
