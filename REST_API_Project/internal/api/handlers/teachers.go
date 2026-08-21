@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -49,9 +50,7 @@ func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		getTeachersHandler(w, r)
 	case http.MethodPost:
-		// Start ---------- 041 -----------
 		addTeacherHandler(w, r)
-		// END ----------- 041 ------------
 		w.Write([]byte("Hello POST Method on Teachers Route"))
 	case http.MethodPut:
 		w.Write([]byte("Hello PUT Method on Teachers Route"))
@@ -63,26 +62,31 @@ func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
-	// Step: 3)
+	// Start ---------- 052 -----------
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+	// END ----------- 052 ------------
+
 	path := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	idStr := strings.TrimSuffix(path, "/")
 	fmt.Println(idStr)
 
 	if idStr == "" {
-		// Step: 2)
 		firstName := r.URL.Query().Get("first_name")
 		lastName := r.URL.Query().Get("last_name")
 
 		teacherList := make([]models.Teacher, 0, len(teachers))
 
 		for _, teacher := range teachers {
-			// Step: 2)
 			if (firstName == "" || teacher.FirstName == firstName) && (lastName == "" || teacher.LastName == lastName) {
-				// Step: 1)
 				teacherList = append(teacherList, teacher)
 			}
 		}
-		// Step: 1)
+
 		response := struct {
 			Status string           `json:"status"`
 			Count  int              `json:"count"`
@@ -97,7 +101,7 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(response)
 	}
 
-	// Step: 4)
+	// Handle path parameter
 	// Atoi-> Alphabet to integer
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -105,11 +109,19 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	teacher, exists := teachers[id]
-	if !exists {
+	// Start ---------- 052 -----------
+	var teacher models.Teacher
+	err = db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", id).Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email, &teacher.Class, &teacher.Subject)
+	if err == sql.ErrNoRows {
 		http.Error(w, "Teacher not found", http.StatusNotFound)
 		return
+	} else if err != nil {
+		http.Error(w, "Database query error", http.StatusInternalServerError)
+		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	// END ----------- 052 ------------
 	json.NewEncoder(w).Encode(teacher)
 }
 
