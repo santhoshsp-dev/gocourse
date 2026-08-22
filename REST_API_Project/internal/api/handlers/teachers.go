@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"restapi/internal/models"
 	"restapi/internal/repository/sqlconnect"
 	"strconv"
@@ -24,12 +25,13 @@ func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 		updateTeacherHandler(w, r)
 		// END ----------- 057 ------------
 	case http.MethodPatch:
-		// Start ---------- 58 -----------
+		// Start ---------- 058 -----------
 		PatchTeacherHandler(w, r)
-		// END ----------- 58 ------------
-		w.Write([]byte("Hello PATCH Method on Teachers Route"))
+		// END ----------- 058 ------------
 	case http.MethodDelete:
-		w.Write([]byte("Hello DELETE Method on Teachers Route"))
+		// Start ---------- 060 -----------
+		deleteTeacherHandler(w, r)
+		// END ----------- 060 ------------
 	}
 }
 
@@ -343,20 +345,54 @@ func PatchTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Apply Updates
+	// for k, v := range updates {
+	// 	switch k {
+	// 	case "first_name":
+	// 		existingTeacher.FirstName = v.(string)
+	// 	case "last_name":
+	// 		existingTeacher.LastName = v.(string)
+	// 	case "email":
+	// 		existingTeacher.Email = v.(string)
+	// 	case "class":
+	// 		existingTeacher.Class = v.(string)
+	// 	case "subject":
+	// 		existingTeacher.Subject = v.(string)
+	// 	}
+	// }
+
+	// Start ---------- 059 -----------
+	// Apply updates using reflect
+	// Step: 1)
+	// teacherVal := reflect.ValueOf(&existingTeacher)
+	// fmt.Println("Teacherval:", teacherVal)
+	// Step: 2)
+	// teacherVal := reflect.ValueOf(&existingTeacher).Elem()
+	// fmt.Println("TeacherType:", teacherVal.Type())
+	// Step: 3)
+	// teacherVal := reflect.ValueOf(&existingTeacher).Elem()
+	// fmt.Println("TeacherType field 0:", teacherVal.Type().Field(0))
+	// fmt.Println("TeacherType field 1:", teacherVal.Type().Field(1))
+	// Step: 4)
+	teacherVal := reflect.ValueOf(&existingTeacher).Elem()
+	teacherType := teacherVal.Type()
+
 	for k, v := range updates {
-		switch k {
-		case "first_name":
-			existingTeacher.FirstName = v.(string)
-		case "last_name":
-			existingTeacher.LastName = v.(string)
-		case "email":
-			existingTeacher.Email = v.(string)
-		case "class":
-			existingTeacher.Class = v.(string)
-		case "subject":
-			existingTeacher.Subject = v.(string)
+		for i := 0; i < teacherVal.NumField(); i++ {
+			// fmt.Println("k from reflect mechanism", k)
+			field := teacherType.Field(i)
+			// fmt.Println(field.Tag.Get("json"))
+			if field.Tag.Get("json") == k+",omitempty" {
+				if teacherVal.Field(i).CanSet() {
+					fieldVal := teacherVal.Field(i)
+					fmt.Println(fieldVal)
+					fmt.Println(reflect.ValueOf(v))
+					fmt.Println(teacherVal.Field(i).Type())
+					teacherVal.Field(i).Set(reflect.ValueOf(v).Convert(teacherVal.Field(i).Type()))
+				}
+			}
 		}
 	}
+	// END ----------- 059 ------------
 
 	_, err = db.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?", existingTeacher.FirstName, existingTeacher.LastName, existingTeacher.Email, existingTeacher.Class, existingTeacher.Subject, existingTeacher.ID)
 
@@ -371,3 +407,53 @@ func PatchTeacherHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // END ----------- 058 ------------
+
+// Start ---------- 060 -----------
+func deleteTeacherHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Invalid Teacher Id", http.StatusBadRequest)
+		return
+	}
+
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Unable to connect to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	result, err := db.Exec("DELETE FROM teachers WHERE id = ?", id)
+	if err != nil {
+		http.Error(w, "Error deleting teacher", http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Println(result.RowsAffected())
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, "Error retrieving delete result", http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		http.Error(w, "Teacher not found", http.StatusNotFound)
+	}
+
+	// w.WriteHeader(http.StatusNoContent)
+
+	w.Header().Set("Content-Type", "application/json")
+	response := struct {
+		Status string `json:"status"`
+		ID     int    `json:"id"`
+	}{
+		Status: "Teacher successfully deleted",
+		ID:     id,
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
+// END ----------- 060 ------------
