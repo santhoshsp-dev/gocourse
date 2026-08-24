@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"restapi/internal/models"
@@ -56,10 +58,85 @@ func GetOneTeacherHandler(w http.ResponseWriter, r *http.Request) {
 func AddTeacherHandler(w http.ResponseWriter, r *http.Request) {
 
 	var newTeachers []models.Teacher
-	err := json.NewDecoder(r.Body).Decode(&newTeachers)
+	// Step: 8)
+	var rawTeachers []map[string]interface{}
+
+	// Step: 15)
+	// request body become empty once we use it
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		return
+	}
+	defer r.Body.Close()
+
+	// Step: 9)
+	// err := json.NewDecoder(r.Body).Decode(&rawTeachers)
+	// Step: 16)
+	err = json.Unmarshal(body, &rawTeachers)
+	// Step: 9)
 	if err != nil {
 		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
 		return
+	}
+
+	// Step: 13)
+	fmt.Println(rawTeachers)
+
+	// Step: 4)
+	// fields := GetFieldNames()
+	// Step: 19)
+	fields := GetFieldNames(models.Teacher{})
+
+	// Step: 6)
+	allowedFields := make(map[string]struct{})
+	for _, field := range fields {
+		allowedFields[field] = struct{}{}
+	}
+
+	// Step: 12) // comment these codes in Step: 14
+	// fmt.Println(fields)
+	// fmt.Println(allowedFields)
+
+	// Step: 7)
+	// for _, teacher := range newTeachers {
+	// Step: 10)
+	for _, teacher := range rawTeachers {
+		for key := range teacher { // this teacher will show an error so we need Step: 8
+			_, ok := allowedFields[key]
+			if !ok {
+				http.Error(w, "Unacceptable field found in request. Only use allowed fields.", http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
+	// Step: 11)
+	// err = json.NewDecoder(r.Body).Decode(&newTeachers)
+	// Step: 17)
+	err = json.Unmarshal(body, &newTeachers)
+	// Step: 11)
+	if err != nil {
+		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
+		// Step: 14)
+		fmt.Println("New Teachers: ", newTeachers)
+		return
+	}
+
+	// Step: 1)
+	for _, teacher := range newTeachers {
+		// Step: 2)
+		// if teacher.FirstName == "" || teacher.LastName == "" || teacher.Email == "" || teacher.Class == "" || teacher.Subject == "" {
+		// 	http.Error(w, "All Fields are required", http.StatusBadRequest)
+		// 	return
+		// }
+
+		// Step: 3)
+		err := CheckBlankFields(teacher)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	addedTeachers, err := sqlconnect.AddTeachersDBHandler(newTeachers)
