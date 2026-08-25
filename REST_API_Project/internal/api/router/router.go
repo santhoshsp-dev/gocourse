@@ -5,16 +5,13 @@ import (
 )
 
 func MainRouter() *http.ServeMux {
+	// eRouter := execsRouter()
 	tRouter := teachersRouter()
 	sRouter := studentsRouter()
 
+	sRouter.Handle("/", execsRouter()) // --- OR ---
+	// sRouter.Handle("/", eRouter)
 	tRouter.Handle("/", sRouter)
 	return tRouter
 
-	// mux := http.NewServeMux()
-
-	// mux.HandleFunc("GET /", handlers.RootHandler)
-
-	// mux.HandleFunc("GET /execs/", handlers.ExecsHandler)
-	// return mux
 }
