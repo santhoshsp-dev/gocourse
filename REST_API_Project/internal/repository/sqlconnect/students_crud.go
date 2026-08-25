@@ -9,6 +9,7 @@ import (
 	"restapi/internal/models"
 	"restapi/pkg/utils"
 	"strconv"
+	"strings"
 )
 
 // ******************************************************************
@@ -21,7 +22,7 @@ func GetStudentsDbHandler(students []models.Student, r *http.Request) ([]models.
 	}
 	defer db.Close()
 
-	query := "SELECT id, first_name, last_name, email, class, FROM students WHERE 1=1"
+	query := "SELECT id, first_name, last_name, email, class FROM students WHERE 1=1"
 	var args []interface{}
 
 	query, args = utils.AddFilters(r, query, args)
@@ -57,7 +58,7 @@ func GetStudentByID(id int) (models.Student, error) {
 	defer db.Close()
 
 	var student models.Student
-	err = db.QueryRow("SELECT id, first_name, last_name, email, class, FROM students WHERE id = ?", id).Scan(&student.ID, &student.FirstName, &student.LastName, &student.Email, &student.Class)
+	err = db.QueryRow("SELECT id, first_name, last_name, email, class FROM students WHERE id = ?", id).Scan(&student.ID, &student.FirstName, &student.LastName, &student.Email, &student.Class)
 	if err == sql.ErrNoRows {
 		return models.Student{}, utils.ErrorHandler(err, "Error retrieving data")
 	} else if err != nil {
@@ -76,12 +77,7 @@ func AddStudentsDBHandler(newStudents []models.Student) ([]models.Student, error
 	}
 	defer db.Close()
 
-	// stmt, err := db.Prepare("INSERT INTO students (first_name, last_name, email, class,) VALUES (?,?,?,?,?)")
 	stmt, err := db.Prepare(utils.GenerateInsertQuery("students", models.Student{}))
-	// if err != nil {
-	// 	http.Error(w, "Error in preparing SQL query", http.StatusInternalServerError)
-	// 	return
-	// }
 	if err != nil {
 		fmt.Println("Prepare error:", err)
 		return nil, utils.ErrorHandler(err, "Error adding data")
@@ -90,10 +86,14 @@ func AddStudentsDBHandler(newStudents []models.Student) ([]models.Student, error
 
 	addedStudents := make([]models.Student, len(newStudents))
 	for i, newStudent := range newStudents {
-		// res, err := stmt.Exec(newStudent.FirstName, newStudent.LastName, newStudent.Email, newStudent.Class, newStudent.Subject)
 		values := utils.GetStructValues(newStudent)
 		res, err := stmt.Exec(values...)
 		if err != nil {
+			fmt.Println("------ Error:", err.Error())
+			if strings.Contains(err.Error(), "a foreign key constraint fails (`school`.`students`, CONSTRAINT `students_ibfk_1` FOREIGN KEY (`class`) REFERENCES `teachers` (`class`))") {
+
+				return nil, utils.ErrorHandler(err, "class/class teacher does not exist")
+			}
 			return nil, utils.ErrorHandler(err, "Error adding data")
 		}
 
@@ -120,7 +120,7 @@ func UpdateStudent(id int, updatedStudent models.Student) (models.Student, error
 	defer db.Close()
 
 	var existingStudent models.Student
-	err = db.QueryRow("SELECT id, first_name, last_name, email, class, FROM students WHERE id = ?", id).Scan(&existingStudent.ID, &existingStudent.FirstName, &existingStudent.LastName, &existingStudent.Email, &existingStudent.Class)
+	err = db.QueryRow("SELECT id, first_name, last_name, email, class FROM students WHERE id = ?", id).Scan(&existingStudent.ID, &existingStudent.FirstName, &existingStudent.LastName, &existingStudent.Email, &existingStudent.Class)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return models.Student{}, utils.ErrorHandler(err, "Error updating data")
@@ -167,7 +167,7 @@ func PatchStudents(updates []map[string]interface{}) error {
 		}
 
 		var studentFromDb models.Student
-		err = db.QueryRow("SELECT id, first_name, last_name, email, class, FROM students WHERE id = ?", id).Scan(&studentFromDb.ID, &studentFromDb.FirstName, &studentFromDb.LastName, &studentFromDb.Email, &studentFromDb.Class)
+		err = db.QueryRow("SELECT id, first_name, last_name, email, class FROM students WHERE id = ?", id).Scan(&studentFromDb.ID, &studentFromDb.FirstName, &studentFromDb.LastName, &studentFromDb.Email, &studentFromDb.Class)
 		if err != nil {
 			log.Println("ID:", id)
 			log.Printf("Type:%T", id)
@@ -229,7 +229,7 @@ func PatchOneStudent(id int, updates map[string]interface{}) (models.Student, er
 	defer db.Close()
 
 	var existingStudent models.Student
-	err = db.QueryRow("SELECT id, first_name, last_name, email, class, FROM students WHERE id = ?", id).Scan(&existingStudent.ID, &existingStudent.FirstName, &existingStudent.LastName, &existingStudent.Email, &existingStudent.Class)
+	err = db.QueryRow("SELECT id, first_name, last_name, email, class FROM students WHERE id = ?", id).Scan(&existingStudent.ID, &existingStudent.FirstName, &existingStudent.LastName, &existingStudent.Email, &existingStudent.Class)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
