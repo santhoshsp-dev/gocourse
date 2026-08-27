@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"crypto/subtle"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -11,6 +14,9 @@ import (
 	"restapi/internal/repository/sqlconnect"
 	"restapi/pkg/utils"
 	"strconv"
+	"strings"
+
+	"golang.org/x/crypto/argon2"
 )
 
 func GetExecsHandler(w http.ResponseWriter, r *http.Request) {
@@ -261,7 +267,9 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer db.Close()
+
 	user := &models.Exec{} // create a blank instance of models.exec
+
 	err = db.QueryRow(`SELECT id, first_name, last_name, email, username, password, inactive_status, role FROM execs WHERE username = ?`, req.Username).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.Username, &user.Password, &user.InactiveStatus, &user.Role)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -273,10 +281,54 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// -------------- Start: 085 ----------------
 	// is user active
+	if user.InactiveStatus {
+		http.Error(w, "Account is inactive", http.StatusForbidden)
+		return
+	}
 
 	// verify password
+	parts := strings.Split(user.Password, ".")
+	if len(parts) != 2 {
+		utils.ErrorHandler(errors.New("invalid encoded hash format"), "invalid encoded hash format")
+		http.Error(w, "invalid encoded hash format", http.StatusForbidden)
+		return
+	}
 
+	saltBse64 := parts[0]
+	hashedPasswordBase64 := parts[1]
+
+	salt, err := base64.StdEncoding.DecodeString(saltBse64)
+	if err != nil {
+		utils.ErrorHandler(err, "failed to decode the salt")
+		http.Error(w, "failed to decode the salt", http.StatusForbidden)
+		return
+	}
+
+	hashedPassword, err := base64.StdEncoding.DecodeString(hashedPasswordBase64)
+	if err != nil {
+		utils.ErrorHandler(err, "failed to decode the hashed password")
+		http.Error(w, "failed to decode the hashed password", http.StatusForbidden)
+		return
+	}
+
+	hash := argon2.IDKey([]byte(req.Password), salt, 1, 64*1024, 4, 32)
+
+	if len(hash) != len(hashedPassword) {
+		utils.ErrorHandler(errors.New("incorrect password"), "incorrect password")
+		http.Error(w, "incorrect password", http.StatusForbidden)
+		return
+	}
+
+	if subtle.ConstantTimeCompare(hash, hashedPassword) == 1 {
+		// do nothing
+	} else {
+		utils.ErrorHandler(errors.New("incorrect password"), "incorrect password")
+		http.Error(w, "incorrect password", http.StatusForbidden)
+		return
+	}
+	// -------------- End: 085 ----------------
 	// Generate Token
 
 	// Send token as a response or as a cookie
