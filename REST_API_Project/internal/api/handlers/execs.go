@@ -15,6 +15,7 @@ import (
 	"restapi/pkg/utils"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -329,7 +330,40 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// -------------- End: 085 ----------------
+	// -------------- Start: 086 ----------------
 	// Generate Token
+	tokenString, err := utils.SignToken(user.ID, user.Username, user.Role)
+	if err != nil {
+		http.Error(w, "Could not create login token", http.StatusInternalServerError)
+		return
+	}
 
 	// Send token as a response or as a cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "Bearer",
+		Value:    tokenString,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		Expires:  time.Now().Add(24 * time.Hour),
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "test",
+		Value:    "testing",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		Expires:  time.Now().Add(24 * time.Hour),
+	})
+
+	// Response Body
+	w.Header().Set("Content-Type", "application/json")
+	response := struct {
+		Token string `json:"token"`
+	}{
+		Token: tokenString,
+	}
+	json.NewEncoder(w).Encode(response)
+	// -------------- End: 086 ----------------
 }

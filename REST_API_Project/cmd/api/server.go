@@ -9,6 +9,7 @@ import (
 	mw "restapi/internal/api/middlewares"
 	"restapi/internal/api/router"
 	"restapi/internal/repository/sqlconnect"
+	"restapi/pkg/utils"
 
 	"github.com/joho/godotenv"
 )
@@ -25,7 +26,7 @@ func main() {
 
 	_, err = sqlconnect.ConnectDb()
 	if err != nil {
-		fmt.Println("Error----------", err)
+		utils.ErrorHandler(err, "")
 		return
 	}
 
@@ -43,21 +44,9 @@ func main() {
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}
-	// rl := mw.NewRateLimiter(5, time.Minute)
 
-	// hppOptions := mw.HPPOptions{
-	// 	CheckQuery:                  true,
-	// 	CheckBody:                   true,
-	// 	CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
-	// 	Whitelist:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
-	// }
-
-	// Start ---------- 036 -----------
-	// secureMux := mw.Cors(rl.Middleware(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mw.Compression(mw.Hpp(hppOptions)(mux)))))) // no need
-	// secureMux := utils.ApplyMiddlewares(mux, mw.Hpp(hppOptions), mw.Compression, mw.SecurityHeaders, mw.ResponseTimeMiddleware, rl.Middleware, mw.Cors)
 	router := router.MainRouter()
 	secureMux := mw.SecurityHeaders(router)
-	// secureMux := mw.SecurityHeaders(router.Router())
 
 	// END ----------- 036 ------------
 
