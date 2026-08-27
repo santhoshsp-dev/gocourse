@@ -1,11 +1,7 @@
 package handlers
 
 import (
-	"crypto/subtle"
-	"database/sql"
-	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -14,10 +10,7 @@ import (
 	"restapi/internal/repository/sqlconnect"
 	"restapi/pkg/utils"
 	"strconv"
-	"strings"
 	"time"
-
-	"golang.org/x/crypto/argon2"
 )
 
 func GetExecsHandler(w http.ResponseWriter, r *http.Request) {
@@ -260,77 +253,29 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// -------------- Start: 087 ----------------
 	// Search for user if user actually exists
-	db, err := sqlconnect.ConnectDb()
+	user, err := sqlconnect.GetUserByUsername(req.Username)
 	if err != nil {
-		utils.ErrorHandler(err, "error updating data")
-		http.Error(w, "error connecting to database", http.StatusBadRequest)
+		http.Error(w, "Invalid username or password", http.StatusBadRequest)
 		return
 	}
-	defer db.Close()
-
-	user := &models.Exec{} // create a blank instance of models.exec
-
-	err = db.QueryRow(`SELECT id, first_name, last_name, email, username, password, inactive_status, role FROM execs WHERE username = ?`, req.Username).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.Username, &user.Password, &user.InactiveStatus, &user.Role)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			utils.ErrorHandler(err, "user not found")
-			http.Error(w, "user not found", http.StatusBadRequest)
-			return
-		}
-		http.Error(w, "database query error", http.StatusBadRequest)
-		return
-	}
-
-	// -------------- Start: 085 ----------------
+	// -------------- Stop: 087 ----------------
 	// is user active
 	if user.InactiveStatus {
 		http.Error(w, "Account is inactive", http.StatusForbidden)
 		return
 	}
 
+	// -------------- Start: 087 ----------------
 	// verify password
-	parts := strings.Split(user.Password, ".")
-	if len(parts) != 2 {
-		utils.ErrorHandler(errors.New("invalid encoded hash format"), "invalid encoded hash format")
-		http.Error(w, "invalid encoded hash format", http.StatusForbidden)
-		return
-	}
-
-	saltBse64 := parts[0]
-	hashedPasswordBase64 := parts[1]
-
-	salt, err := base64.StdEncoding.DecodeString(saltBse64)
+	err = utils.VerifyPassword(req.Password, user.Password)
 	if err != nil {
-		utils.ErrorHandler(err, "failed to decode the salt")
-		http.Error(w, "failed to decode the salt", http.StatusForbidden)
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
+	// -------------- Stop: 087 ----------------
 
-	hashedPassword, err := base64.StdEncoding.DecodeString(hashedPasswordBase64)
-	if err != nil {
-		utils.ErrorHandler(err, "failed to decode the hashed password")
-		http.Error(w, "failed to decode the hashed password", http.StatusForbidden)
-		return
-	}
-
-	hash := argon2.IDKey([]byte(req.Password), salt, 1, 64*1024, 4, 32)
-
-	if len(hash) != len(hashedPassword) {
-		utils.ErrorHandler(errors.New("incorrect password"), "incorrect password")
-		http.Error(w, "incorrect password", http.StatusForbidden)
-		return
-	}
-
-	if subtle.ConstantTimeCompare(hash, hashedPassword) == 1 {
-		// do nothing
-	} else {
-		utils.ErrorHandler(errors.New("incorrect password"), "incorrect password")
-		http.Error(w, "incorrect password", http.StatusForbidden)
-		return
-	}
-	// -------------- End: 085 ----------------
-	// -------------- Start: 086 ----------------
 	// Generate Token
 	tokenString, err := utils.SignToken(user.ID, user.Username, user.Role)
 	if err != nil {
@@ -365,5 +310,4 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		Token: tokenString,
 	}
 	json.NewEncoder(w).Encode(response)
-	// -------------- End: 086 ----------------
 }
