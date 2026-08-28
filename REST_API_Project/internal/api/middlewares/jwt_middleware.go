@@ -23,6 +23,7 @@ func JWTMiddleware(next http.Handler) http.Handler {
 		token, err := r.Cookie("Bearer")
 		if err != nil {
 			http.Error(w, "Authorization Header Missing", http.StatusUnauthorized)
+			return
 		}
 
 		jwtSecret := os.Getenv("JWT_SECRET")
@@ -58,13 +59,14 @@ func JWTMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// --------------- Start: 090 ----------------
 		claims, ok := parsedToken.Claims.(jwt.MapClaims)
-		if ok {
-			fmt.Println(claims["uid"], claims["exp"], claims["role"])
-		} else {
+		if !ok {
 			http.Error(w, "Invalid Login Token", http.StatusUnauthorized)
+			log.Println("Invalid Login Token:", token.Value)
 			return
 		}
+		// --------------- End: 090 ----------------
 
 		// Now let's use context to carry the claim information across different middlewares across different functions. Now what is context. Well in the context of our use context is associated with the request. The request object has a context method through which you can access the context, and context can contain key value based information. We have already used context when we were learning. Go in our earlier sections and we are going to use context in the same way. We are going to save key value pairs. However, this time we are going to access the request context.
 
