@@ -46,17 +46,13 @@ func main() {
 	}
 
 	router := router.MainRouter()
-	// Start ----------- 090 ------------
-	jwtMiddleware := mw.MiddlewaresExcludePaths(mw.JWTMiddleware, "/execs/login")
-	//
-	// Start ----------- 089 ------------
+	// Start ----------- 093 ------------
+	jwtMiddleware := mw.MiddlewaresExcludePaths(mw.JWTMiddleware, "/execs/login", "/execs/forgotpassword")
+	// END ----------- 093 ------------
+
 	secureMux := jwtMiddleware(mw.SecurityHeaders(router))
-	// END ----------- 089 ------------
-	// END ----------- 090 ------------
 
 	// secureMux := mw.SecurityHeaders(router)
-
-	// END ----------- 036 ------------
 
 	// Create custom server
 	server := &http.Server{
