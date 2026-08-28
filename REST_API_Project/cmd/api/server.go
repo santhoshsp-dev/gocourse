@@ -46,7 +46,8 @@ func main() {
 	}
 
 	router := router.MainRouter()
-	secureMux := mw.SecurityHeaders(router)
+	secureMux := mw.JWTMiddleware(mw.SecurityHeaders(router))
+	// secureMux := mw.SecurityHeaders(router)
 
 	// END ----------- 036 ------------
 
