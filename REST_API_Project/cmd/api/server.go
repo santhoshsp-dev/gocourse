@@ -46,9 +46,9 @@ func main() {
 	}
 
 	router := router.MainRouter()
-	// Start ----------- 093 ------------
-	jwtMiddleware := mw.MiddlewaresExcludePaths(mw.JWTMiddleware, "/execs/login", "/execs/forgotpassword")
-	// END ----------- 093 ------------
+	// Start ----------- 094 ------------
+	jwtMiddleware := mw.MiddlewaresExcludePaths(mw.JWTMiddleware, "/execs/login", "/execs/forgotpassword", "/execs/resetpassword/reset")
+	// END ----------- 094 ------------
 
 	secureMux := jwtMiddleware(mw.SecurityHeaders(router))
 
