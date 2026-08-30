@@ -10,6 +10,7 @@ import (
 	"restapi/internal/api/router"
 	"restapi/internal/repository/sqlconnect"
 	"restapi/pkg/utils"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -45,16 +46,26 @@ func main() {
 		MinVersion: tls.VersionTLS12,
 	}
 
+	rl := mw.NewRateLimiter(5, time.Minute)
+
+	hppOptions := mw.HPPOptions{
+		CheckQuery:                  true,
+		CheckBody:                   true,
+		CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
+		Whitelist:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
+	}
+
+	// Start ----------- 099 ------------
+	// secureMux := mw.Cors(rl.Middleware(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mw.Compression(mw.Hpp(hppOptions)(mux)))))) // no need
+	// secureMux := jwtMiddleware(mw.SecurityHeaders(router))
+	// secureMux := mw.SecurityHeaders(router)
+	// secureMux := mw.XSSMiddleware(router)
 	router := router.MainRouter()
-	// Start ----------- 098 ------------
 	jwtMiddleware := mw.MiddlewaresExcludePaths(mw.JWTMiddleware, "/execs/login", "/execs/forgotpassword", "/execs/resetpassword/reset")
 
-	secureMux := jwtMiddleware(mw.SecurityHeaders(router))
+	secureMux := utils.ApplyMiddlewares(router, mw.SecurityHeaders, mw.Compression, mw.Hpp(hppOptions), mw.XSSMiddleware, jwtMiddleware, mw.ResponseTimeMiddleware, rl.Middleware, mw.Cors)
 
-	// secureMux := mw.XSSMiddleware(router)
-	// END ----------- 098 ------------
-
-	// secureMux := mw.SecurityHeaders(router)
+	// END ----------- 099 ------------
 
 	// Create custom server
 	server := &http.Server{
