@@ -12,8 +12,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// --------------- Start: 098 ----------------
 // we need to use ContextKey because ctx showing warning like:- should not use built in type string as key for value.
-type ContextKey string
+// type ContextKey string // in video: 98, we moved this code from here to pkg/utils/authorize_user.go
+// --------------- End: 098 ----------------
 
 func JWTMiddleware(next http.Handler) http.Handler {
 	fmt.Println("---------------------- JWT Middleware --------------------")
@@ -59,21 +61,21 @@ func JWTMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// --------------- Start: 090 ----------------
 		claims, ok := parsedToken.Claims.(jwt.MapClaims)
 		if !ok {
 			http.Error(w, "Invalid Login Token", http.StatusUnauthorized)
 			log.Println("Invalid Login Token:", token.Value)
 			return
 		}
-		// --------------- End: 090 ----------------
 
 		// Now let's use context to carry the claim information across different middlewares across different functions. Now what is context. Well in the context of our use context is associated with the request. The request object has a context method through which you can access the context, and context can contain key value based information. We have already used context when we were learning. Go in our earlier sections and we are going to use context in the same way. We are going to save key value pairs. However, this time we are going to access the request context.
 
-		ctx := context.WithValue(r.Context(), ContextKey("role"), claims["role"])
-		ctx = context.WithValue(ctx, ContextKey("exppiresAt"), claims["exp"])
-		ctx = context.WithValue(ctx, ContextKey("username"), claims["user"])
-		ctx = context.WithValue(ctx, ContextKey("userId"), claims["uid"])
+		// --------------- Start: 098 ----------------
+		ctx := context.WithValue(r.Context(), utils.ContextKey("role"), claims["role"])
+		ctx = context.WithValue(ctx, utils.ContextKey("exppiresAt"), claims["exp"])
+		ctx = context.WithValue(ctx, utils.ContextKey("username"), claims["user"])
+		ctx = context.WithValue(ctx, utils.ContextKey("userId"), claims["uid"])
+		// --------------- End: 098 ----------------
 
 		fmt.Println(ctx)
 
