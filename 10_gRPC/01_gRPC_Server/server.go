@@ -34,7 +34,7 @@ func main() {
 	}
 
 	// ---------- Start: 007 ------------
-	creds, err := credentials.NewClientTLSFromFile(cert, key)
+	creds, err := credentials.NewServerTLSFromFile(cert, key)
 	if err != nil {
 		log.Fatalln("Failed to load credentials", err)
 	}

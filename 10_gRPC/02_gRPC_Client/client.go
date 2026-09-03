@@ -7,12 +7,19 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 )
 
 func main() {
+	cert := "cert.pem"
+	// ---------- Start: 007 ------------
+	creds, err := credentials.NewClientTLSFromFile(cert, "")
+	if err != nil {
+		log.Fatalln("Failed to load certificates", err)
+	}
 
-	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(creds))
+	// ---------- End: 007 ------------
 	if err != nil {
 		log.Fatalln("Did not connect:", err)
 	}
